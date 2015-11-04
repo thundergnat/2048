@@ -19,8 +19,6 @@ constant $tab   = "\t\t"; # spacing from left edge
 constant $top   = join '─' x $cell, '┌', '┬' xx 3, '┐';
 constant $mid   = join '─' x $cell, '├', '┼' xx 3, '┤';
 constant $bot   = join '─' x $cell, '└', '┴' xx 3, '┘';
-constant left   = 'left';
-constant right  = 'right';
 
 my %dir = (
    (27, 91, 65) => 'up',
@@ -47,7 +45,7 @@ sub draw-board {
     print "$tab$bot\n\n{$tab}Score: ";
 }
 
-multi sub squash ('left', @c) { 
+multi sub squash (@c) { 
     my @t = grep { .chars }, @c;
     map { combine(@t[$_], @t[$_+1]) if @t[$_] && @t[$_+1] == @t[$_] }, ^@t-1;
     @t = grep { .chars }, @t;
@@ -55,30 +53,22 @@ multi sub squash ('left', @c) {
     @t;
 }
 
-multi sub squash ('right', @c) { 
-    my @t = reverse grep { .chars }, @c;
-    map { combine(@t[$_], @t[$_+1]) if @t[$_] && @t[$_+1] == @t[$_] }, ^@t-1;
-    @t = grep { .chars }, @t;
-    @t.push: '' while @t < 4;
-    reverse @t;
-}
-
 sub combine ($v is rw, $w is rw) { $v += $w; $w = ''; $score += $v; }
 
 multi sub move('up') {
-    map { @board[*]»[$_] = squash left, @board[*]»[$_] }, 0..3
+    map { @board[*]»[$_] = squash @board[*]»[$_] }, 0..3
 }
 
 multi sub move('down') {
-    map { @board[*]»[$_] = squash right, @board[*]»[$_] }, 0..3
+    map { @board[*]»[$_] = reverse squash reverse @board[*]»[$_] }, 0..3
 }
 
 multi sub move('left') {
-    map { @board[$_] = squash left, flat @board[$_]»[*] }, 0..3
+    map { @board[$_] = squash flat @board[$_]»[*] }, 0..3
 }
 
 multi sub move('right') {
-    map { @board[$_] = squash right, flat @board[$_]»[*] }, 0..3
+    map { @board[$_] = reverse squash reverse flat @board[$_]»[*] }, 0..3
 }
 
 sub another {
