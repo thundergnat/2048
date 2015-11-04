@@ -45,7 +45,7 @@ sub draw-board {
     print "$tab$bot\n\n{$tab}Score: ";
 }
 
-multi sub squash (@c) { 
+sub squash (@c) { 
     my @t = grep { .chars }, @c;
     map { combine(@t[$_], @t[$_+1]) if @t[$_] && @t[$_+1] == @t[$_] }, ^@t-1;
     @t = grep { .chars }, @t;
