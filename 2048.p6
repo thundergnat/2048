@@ -48,57 +48,37 @@ sub draw-board {
 }
 
 multi sub squash ('left', @c) { 
-    my @tiles = grep { .chars }, @c;
-    @tiles.push: '' while @tiles < 4;
-    @tiles;
+    my @t = grep { .chars }, @c;
+    map { combine(@t[$_], @t[$_+1]) if @t[$_] && @t[$_+1] == @t[$_] }, ^@t-1;
+    @t = grep { .chars }, @t;
+    @t.push: '' while @t < 4;
+    @t;
 }
 
 multi sub squash ('right', @c) { 
-    my @tiles = grep { .chars }, @c;
-    @tiles.unshift: '' while @tiles < 4;
-    @tiles;
+    my @t = reverse grep { .chars }, @c;
+    map { combine(@t[$_], @t[$_+1]) if @t[$_] && @t[$_+1] == @t[$_] }, ^@t-1;
+    @t = grep { .chars }, @t;
+    @t.push: '' while @t < 4;
+    reverse @t;
 }
 
 sub combine ($v is rw, $w is rw) { $v += $w; $w = ''; $score += $v; }
 
 multi sub move('up') {
-    for 0 .. 3 -> $y {
-        my @col = squash left, @board[*]»[$y];
-        for 0 .. 2 -> $x {
-            combine(@col[$x], @col[$x+1]) if @col[$x] && @col[$x+1] == @col[$x]
-        }
-        @board[*]»[$y] = squash left, @col;
-    }
+    map { @board[*]»[$_] = squash left, @board[*]»[$_] }, 0..3
 }
 
 multi sub move('down') {
-    for 0 .. 3 -> $y {
-        my @col = squash right, @board[*]»[$y];
-        for 3 ... 1 -> $x {
-            combine(@col[$x], @col[$x-1]) if @col[$x] && @col[$x-1] == @col[$x]
-        }
-        @board[*]»[$y] = squash right, @col;
-    }
+    map { @board[*]»[$_] = squash right, @board[*]»[$_] }, 0..3
 }
 
 multi sub move('left') {
-    for 0 .. 3 -> $y {
-        my @row = squash left, flat @board[$y]»[*];
-        for 0 .. 2 -> $x {
-            combine(@row[$x], @row[$x+1]) if @row[$x] && @row[$x+1] == @row[$x]
-        }
-        @board[$y] = squash left, @row;
-    }
+    map { @board[$_] = squash left, flat @board[$_]»[*] }, 0..3
 }
 
 multi sub move('right') {
-    for 0 .. 3 -> $y {
-        my @row = squash right, flat @board[$y]»[*];
-        for 3 ... 1 -> $x {
-            combine(@row[$x], @row[$x-1]) if @row[$x] && @row[$x-1] == @row[$x]
-        }
-        @board[$y] = squash right, @row;
-    }
+    map { @board[$_] = squash right, flat @board[$_]»[*] }, 0..3
 }
 
 sub another {
