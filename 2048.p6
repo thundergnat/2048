@@ -11,64 +11,80 @@ $termios.setattr(:DRAIN);
 # reset terminal to original setting on exit
 END { $saved.setattr(:NOW) }
 
-my @board = ( ['', '', '', ''] xx 4 );
+constant n    = 4; # board size
+constant cell = 6; # cell width
+constant ansi = True; # color!
+
+my @board = ( ['' xx n] xx n );
 my $save  = '';
 my $score = 0;
-constant $cell  = 6; # width
-constant $tab   = "\t\t"; # spacing from left edge
-constant $top   = join '─' x $cell, '┌', '┬' xx 3, '┐';
-constant $mid   = join '─' x $cell, '├', '┼' xx 3, '┤';
-constant $bot   = join '─' x $cell, '└', '┴' xx 3, '┘';
+
+constant $top = join '─' x cell, '┌', '┬' xx n-1, '┐';
+constant $mid = join '─' x cell, '├', '┼' xx n-1, '┤';
+constant $bot = join '─' x cell, '└', '┴' xx n-1, '┘';
 
 my %dir = (
-   (27, 91, 65) => 'up',
-   (27, 91, 66) => 'down',
-   (27, 91, 67) => 'right',
-   (27, 91, 68) => 'left',
+   "\e[A" => 'up',
+   "\e[B" => 'down',
+   "\e[C" => 'right',
+   "\e[D" => 'left',
 );
 
-sub row (@row) {
-    sprintf("│%{$cell}s│%{$cell}s│%{$cell}s│%{$cell}s│\n", @row».&center )
-}
+my @ANSI = <0 1;97 1;93 1;92 1;96 1;91 1;95 1;94 1;30;47 1;43
+    1;42 1;46 1;41 1;45 1;44 1;33;43 1;33;42 1;33;41 1;33;44>;
+
+sub row (@row) { '│' ~ (join '│', @row».&center) ~ '│' }
 
 sub center ($s){
-    my $c   = $cell - $s.chars;
+    my $c   = cell - $s.chars;
     my $pad = ' ' x ceiling($c/2);
-    sprintf "%{$cell}s", "$s$pad";
+    my $tile = sprintf "%{cell}s", "$s$pad";
+    my $idx = $s ?? $s.log(2) !! 1;
+    ansi ?? "\e[{@ANSI[$idx]}m" ~ $tile ~ "\e[0m" !! $tile;
 }
 
 sub draw-board {
     run('clear');
-    print "\n\n{$tab}Press direction arrows to move.";
-    print "\n\n{$tab}Press q to quit.\n\n$tab$top\n$tab";
-    print join "$tab$mid\n$tab", map { $_.&row }, @board;
-    print "$tab$bot\n\n{$tab}Score: ";
+    print qq:to/END/;
+
+
+	Press direction arrows to move.
+
+	Press q to quit. 
+
+	$top
+	{ join "\n	$mid\n	", map { $_.&row }, @board }
+	$bot
+
+	Score: $score
+
+END
 }
 
 sub squash (@c) { 
     my @t = grep { .chars }, @c;
     map { combine(@t[$_], @t[$_+1]) if @t[$_] && @t[$_+1] == @t[$_] }, ^@t-1;
     @t = grep { .chars }, @t;
-    @t.push: '' while @t < 4;
+    @t.push: '' while @t < n;
     @t;
 }
 
 sub combine ($v is rw, $w is rw) { $v += $w; $w = ''; $score += $v; }
 
 multi sub move('up') {
-    map { @board[*]»[$_] = squash @board[*]»[$_] }, 0..3
+    map { @board[*]»[$_] = squash @board[*]»[$_] }, ^n;
 }
 
 multi sub move('down') {
-    map { @board[*]»[$_] = reverse squash reverse @board[*]»[$_] }, 0..3
+    map { @board[*]»[$_] = reverse squash reverse @board[*]»[$_] }, ^n;
 }
 
 multi sub move('left') {
-    map { @board[$_] = squash flat @board[$_]»[*] }, 0..3
+    map { @board[$_] = squash flat @board[$_]»[*] }, ^n;
 }
 
 multi sub move('right') {
-    map { @board[$_] = reverse squash reverse flat @board[$_]»[*] }, 0..3
+    map { @board[$_] = reverse squash reverse flat @board[$_]»[*] }, ^n;
 }
 
 sub another {
@@ -81,14 +97,15 @@ sub another {
 }
 
 loop {
-   another if (join '|', flat @board».list) ne $save;
+   another if $save ne join '|', flat @board».list;
    draw-board;
-   say $score;
+
    # Read up to 4 bytes from keyboard buffer.
    # Page navigation keys are 3-4 bytes each.
    # Specifically, arrow keys are 3.
-   my $char = $*IN.read(4).decode.ords;
+
+   my $char = $*IN.read(4).decode;
    $save = join '|', flat @board».list;
-   move(%dir{$char}) if so %dir{$char};
-   last if $char eq 113; # (q)uit
+   move %dir{$char} if so %dir{$char};
+   last if $char eq 'q'; # (q)uit
 }
