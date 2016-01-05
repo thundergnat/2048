@@ -5,7 +5,7 @@ constant $termios = Term::termios.new(fd => 1).getattr;
 # raw mode interferes with carriage returns, so
 # set flags needed to emulate it manually
 $termios.unset_iflags(<BRKINT ICRNL ISTRIP IXON>);
-$termios.unset_lflags(<ECHO ICANON IEXTEN ISIG>);
+$termios.unset_lflags(< ECHO ICANON IEXTEN ISIG>);
 $termios.setattr(:DRAIN);
 
 # reset terminal to original setting on exit
@@ -39,8 +39,8 @@ sub center ($s){
     my $c   = cell - $s.chars;
     my $pad = ' ' x ceiling($c/2);
     my $tile = sprintf "%{cell}s", "$s$pad";
-    my $idx = $s ?? $s.log(2) !! 1;
-    ansi ?? "\e[{@ANSI[$idx]}m" ~ $tile ~ "\e[0m" !! $tile;
+    my $idx = $s ?? $s.log(2) !! 0;
+    ansi ?? "\e[{@ANSI[$idx]}m$tile\e[0m" !! $tile;
 }
 
 sub draw-board {
@@ -50,10 +50,10 @@ sub draw-board {
 
 	Press direction arrows to move.
 
-	Press q to quit. 
+	Press q to quit.
 
 	$top
-	{ join "\n	$mid\n	", map { $_.&row }, @board }
+	{ join "\n\t$mid\n\t", map { .&row }, @board }
 	$bot
 
 	Score: $score
@@ -61,7 +61,7 @@ sub draw-board {
 END
 }
 
-sub squash (@c) { 
+sub squash (@c) {
     my @t = grep { .chars }, @c;
     map { combine(@t[$_], @t[$_+1]) if @t[$_] && @t[$_+1] == @t[$_] }, ^@t-1;
     @t = grep { .chars }, @t;
@@ -72,19 +72,19 @@ sub squash (@c) {
 sub combine ($v is rw, $w is rw) { $v += $w; $w = ''; $score += $v; }
 
 multi sub move('up') {
-    map { @board[*]»[$_] = squash @board[*]»[$_] }, ^n;
+    map { @board[*;$_] = squash @board[*;$_] }, ^n;
 }
 
 multi sub move('down') {
-    map { @board[*]»[$_] = reverse squash reverse @board[*]»[$_] }, ^n;
+    map { @board[*;$_] = reverse squash reverse @board[*;$_] }, ^n;
 }
 
 multi sub move('left') {
-    map { @board[$_] = squash flat @board[$_]»[*] }, ^n;
+    map { @board[$_] = squash flat @board[$_;*] }, ^n;
 }
 
 multi sub move('right') {
-    map { @board[$_] = reverse squash reverse flat @board[$_]»[*] }, ^n;
+    map { @board[$_] = reverse squash reverse flat @board[$_;*] }, ^n;
 }
 
 sub another {
@@ -96,16 +96,18 @@ sub another {
     @board[$x; $y] = (flat 2 xx 9, 4).roll;
 }
 
+sub save () { join '|', flat @board».list }
+
 loop {
-   another if $save ne join '|', flat @board».list;
-   draw-board;
+    another if $save ne save();
+    draw-board;
+    $save = save();
 
-   # Read up to 4 bytes from keyboard buffer.
-   # Page navigation keys are 3-4 bytes each.
-   # Specifically, arrow keys are 3.
+    # Read up to 4 bytes from keyboard buffer.
+    # Page navigation keys are 3-4 bytes each.
+    # Specifically, arrow keys are 3.
+    my $key = $*IN.read(4).decode;
 
-   my $char = $*IN.read(4).decode;
-   $save = join '|', flat @board».list;
-   move %dir{$char} if so %dir{$char};
-   last if $char eq 'q'; # (q)uit
+    move %dir{$key} if so %dir{$key};
+    last if $key eq 'q'; # (q)uit
 }
