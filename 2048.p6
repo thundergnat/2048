@@ -80,11 +80,11 @@ multi sub move('down') {
 }
 
 multi sub move('left') {
-    map { @board[$_] = squash flat @board[$_;*] }, ^n;
+    map { @board[$_] = squash @board[$_] }, ^n;
 }
 
 multi sub move('right') {
-    map { @board[$_] = reverse squash reverse flat @board[$_;*] }, ^n;
+    map { @board[$_] = reverse squash reverse @board[$_] }, ^n;
 }
 
 sub another {
