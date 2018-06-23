@@ -71,20 +71,22 @@ sub squash (@c) {
 
 sub combine ($v is rw, $w is rw) { $v += $w; $w = ''; $score += $v; }
 
-multi sub move('up') {
+proto sub move (|) {*};
+
+multi move('up') {
     map { @board[*;$_] = squash @board[*;$_] }, ^n;
 }
 
-multi sub move('down') {
+multi move('down') {
     map { @board[*;$_] = reverse squash reverse @board[*;$_] }, ^n;
 }
 
-multi sub move('left') {
+multi move('left') {
     map { @board[$_] = squash @board[$_] }, ^n;
 }
 
-multi sub move('right') {
-    map { @board[$_] = reverse squash reverse @board[$_] }, ^n;
+multi move('right') {
+    map { @board[$_;*] = reverse squash reverse @board[$_] }, ^n;
 }
 
 sub another {
